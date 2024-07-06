@@ -16,7 +16,8 @@ class AudioDataset(Dataset):
     def __getitem__(self, idx):
         file_path = self.file_paths[idx]
         y, sr = librosa.load(file_path, sr=self.sr)
-        return y, sr, os.path.basename(file_path)
+        class_name = os.path.basename(os.path.dirname(file_path))
+        return y, sr, os.path.basename(file_path), class_name
 
 
 def time_stretch(data, rate=1.0):
@@ -55,31 +56,31 @@ def add_noise(data, noise_factor=0.005):
     return augmented_data
 
 
-def augment_and_save(data, sr, base_filename, output_dir):
+def augment_and_save(data, sr, base_filename, class_name, output_dir):
+    class_output_dir = os.path.join(output_dir, class_name)
+    os.makedirs(class_output_dir, exist_ok=True)
+
     # augment data 1
     tsf_and_addnoise = time_stretch(data, rate=1.3)
     tsf_and_addnoise = add_noise(tsf_and_addnoise, noise_factor=0.025)
-    sf.write(os.path.join(output_dir, f'{base_filename}_augment_1.wav'), tsf_and_addnoise, sr)
+    sf.write(os.path.join(class_output_dir, base_filename + '_augment_1.wav'), tsf_and_addnoise, sr)
 
     # augment data 2
     tss_and_addnoise = time_stretch(data, rate=0.7)
     tss_and_addnoise = add_noise(tss_and_addnoise, noise_factor=0.05)
-    sf.write(os.path.join(output_dir, f'{base_filename}_augment_2.wav'), tss_and_addnoise, sr)
+    sf.write(os.path.join(class_output_dir, base_filename + '_augment_2.wav'), tss_and_addnoise, sr)
 
     # augment data 3
     psh = pitch_shift(data, sr, n_steps=2)
-    sf.write(os.path.join(output_dir, f'{base_filename}_augment_3.wav'), psh, sr)
+    sf.write(os.path.join(class_output_dir, base_filename + '_augment_3.wav'), psh, sr)
 
     # augment data 4
     psl = pitch_shift(data, sr, n_steps=-2)
-    sf.write(os.path.join(output_dir, f'{base_filename}_augment_4.wav'), psl, sr)
+    sf.write(os.path.join(class_output_dir, base_filename + '_augment_4.wav'), psl, sr)
+
 
 
 def main():
-    input_dir = '/Users/imdohyeon/Documents/PythonWorkspace/Lieon-ai/dataset/train'
-    output_dir = '/Users/imdohyeon/Documents/PythonWorkspace/Lieon-ai/dataset/augment'
-    os.makedirs(output_dir, exist_ok=True)
-
     file_paths = [os.path.join(root, file)
                   for root, _, files in os.walk(input_dir)
                   for file in files if file.endswith('.wav')]
@@ -87,11 +88,12 @@ def main():
     dataset = AudioDataset(file_paths)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
-    for data, sr, base_filename in dataloader:
-        data = data[0].numpy()  # 배치 사이즈가 1이므로 첫 번째 원소를 갖고 numpy 배열로 변환
+    for data, sr, base_filename, class_name in dataloader:
+        data = data[0].numpy()  # Batch size is 1, so get the first element and convert to numpy array
         sr = sr[0].item()  # Unpack the batch
         base_filename = base_filename[0]  # Unpack the batch
-        augment_and_save(data, sr, base_filename, output_dir)
+        class_name = class_name[0]  # Unpack the batch
+        augment_and_save(data, sr, base_filename, class_name, output_dir)
 
 if __name__ == '__main__':
     main()
