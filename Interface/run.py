@@ -17,12 +17,11 @@ import torch
 import torch.nn as nn
 import os
 from utils import *
-# from Model import ResNet  # ResNet 모델이 있는 파일에서 임포트
 # from Preprocessing import preprocess_window  # 전처리 함수를 정의한 파일에서 임포트
 
 
 def main():
-    eeg_file = '/Users/imdohyeon/Documents/PythonWorkspace/Mel-ResNet/Dataset/'  # not completed yet
+    eeg_file = '/Users/imdohyeon/Library/CloudStorage/GoogleDrive-dhlim1598@gmail.com/공유 드라이브/4N_PKNU/BXAI/BMI/Mel-ResNet/EEG'  # not completed yet
     model_path = '/Users/imdohyeon/Documents/PythonWorkspace/Mel-ResNet/Model/'  # not completed yet
 
     # EEG 데이터 로드
