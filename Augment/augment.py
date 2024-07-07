@@ -81,6 +81,10 @@ def augment_and_save(data, sr, base_filename, class_name, output_dir):
 
 
 def main():
+    input_dir = '/Users/imdohyeon/Library/CloudStorage/GoogleDrive-dhlim1598@gmail.com/공유 드라이브/4N_PKNU/BXAI/BMI/Mel-ResNet/Raw'
+    output_dir = '/Users/imdohyeon/Library/CloudStorage/GoogleDrive-dhlim1598@gmail.com/공유 드라이브/4N_PKNU/BXAI/BMI/Mel-ResNet/Augmented'
+    os.makedirs(output_dir, exist_ok=True)
+
     file_paths = [os.path.join(root, file)
                   for root, _, files in os.walk(input_dir)
                   for file in files if file.endswith('.wav')]
