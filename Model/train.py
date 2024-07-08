@@ -1,13 +1,16 @@
 import os
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
-from Preprocessing import preprocessing  # 전처리 함수 임포트
+import time
+import logging
 import numpy as np
 import librosa
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
 from sklearn.metrics import accuracy_score, f1_score
+from Preprocessing.temp_preprocessing import preprocess_audio
+from torchvision import models
 
 
 # 데이터셋 클래스 정의
@@ -33,17 +36,27 @@ class SpeechDataset(Dataset):
                            for root, _, files in os.walk(data_dir)
                            for file in files if file.endswith('.wav')]
 
+        # 라벨 맵핑 사전 정의
+        self.label_map = {
+            'Call': 0, 'Camera': 1, 'Down': 2, 'Left': 3, 'Message': 4, 'Music': 5, 'Off': 6,
+            'On': 7, 'Receive': 8, 'Right': 9, 'Turn': 10, 'Up': 11, 'Volume': 12
+        }
+
     def __len__(self):
         return len(self.data_files)
 
     def __getitem__(self, idx):
         file_path = self.data_files[idx]
-        data, sr = librosa.load(file_path, sr=None)
-        data = Preprocessing(data)  # 전처리 함수 사용
+        data = preprocess_audio(file_path)  # 전처리 함수 사용
 
         # Assuming label is the parent folder name
         label_name = os.path.basename(os.path.dirname(file_path))
-        label = label_map[label_name]  # 라벨을 정수형으로 변환
+        label = self.label_map[label_name]  # 라벨을 정수형으로 변환
+
+        # Mel-spectrogram 데이터 차원 맞추기 (채널 차원 추가)
+        data = np.expand_dims(data, axis=0)
+        # ResNet은 3채널 입력을 기대하므로, 데이터를 3채널로 복제
+        data = np.repeat(data, 3, axis=0)
 
         if self.transform:
             data = self.transform(data)
@@ -112,7 +125,7 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs, device, e
     patience_counter = 0
 
     # 로깅 설정
-    logging.basicConfig(filename='training.log', level=logging.INFO)
+    logging.basicConfig(filename='training.log', level=logging.INFO, force=True)
     logging.info('Training started at ' + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
     for epoch in range(num_epochs):
@@ -189,13 +202,6 @@ def save_model(model, path):
     :param path: 저장 경로
     """
     torch.save(model.state_dict(), path)
-
-
-# 라벨 맵핑 사전 정의
-label_map = {
-    'Call': 0, 'Camera': 1, 'Down': 2, 'Left': 3, 'Message': 4, 'Music': 5, 'Off': 6,
-    'On': 7, 'Receive': 8, 'Right': 9, 'Turn': 10, 'Up': 11, 'Volume': 12
-}
 
 
 # main 함수
