@@ -2,14 +2,13 @@ import os
 import time
 import logging
 import numpy as np
-import librosa
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from sklearn.metrics import accuracy_score, f1_score
-from Preprocessing.temp_preprocessing import preprocess_audio
+from temp_preprocessing import preprocess_audio
 from torchvision import models
 
 
