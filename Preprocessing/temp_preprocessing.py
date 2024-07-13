@@ -51,6 +51,11 @@ def convert_mel_spect(data, sampling_rate):
 
     return mel.numpy()
 
+def convert_mel_spect_librosa_only(data, sampling_rate):
+    mel_spect = librosa.feature.melspectrogram(data, sr=sampling_rate)
+    mel_spect = librosa.power_to_db(mel_spect, ref=np.max)
+    return mel_spect
+
 def save_mel_spect(mel_spect, save_path):
     np.save(save_path, mel_spect)
 
