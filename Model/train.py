@@ -8,8 +8,11 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from sklearn.metrics import accuracy_score, f1_score
-from temp_preprocessing import preprocess_audio
+from Preprocessing.temp_preprocessing import preprocess_audio_temp
 from torchvision import models
+
+
+
 
 
 # 데이터셋 클래스 정의
@@ -46,16 +49,14 @@ class SpeechDataset(Dataset):
 
     def __getitem__(self, idx):
         file_path = self.data_files[idx]
-        data = preprocess_audio(file_path)  # 전처리 함수 사용
+        data = preprocess_audio_temp(file_path)  # 전처리 함수 사용, 임시
 
-        # Assuming label is the parent folder name
+        # 라벨명은 상위 폴더 이름
         label_name = os.path.basename(os.path.dirname(file_path))
         label = self.label_map[label_name]  # 라벨을 정수형으로 변환
 
         # Mel-spectrogram 데이터 차원 맞추기 (채널 차원 추가)
-        data = np.expand_dims(data, axis=0)
-        # ResNet은 3채널 입력을 기대하므로, 데이터를 3채널로 복제
-        data = np.repeat(data, 3, axis=0)
+        # data = np.expand_dims(data, axis=0)  # (1, H, W) 형태로 변환
 
         if self.transform:
             data = self.transform(data)
@@ -70,7 +71,7 @@ class ResNet(nn.Module):
     """
     def __init__(self, num_classes=13):
         super(ResNet, self).__init__()
-        self.resnet = models.resnet50(pretrained=False)
+        self.resnet = models.resnet50(weights=False)
         self.resnet.fc = nn.Linear(self.resnet.fc.in_features, num_classes)
 
     def forward(self, x):
@@ -78,7 +79,7 @@ class ResNet(nn.Module):
 
 
 # 데이터 로드 함수
-def load_data(train_dir, test_dir, batch_size):
+def load_data(train_dir, test_dir, batch_size, transform):
     """
     데이터를 로드하는 함수. 데이터셋을 생성하고 DataLoader로 반환합니다.
     :param train_dir: 학습 데이터 디렉토리 경로
@@ -86,8 +87,8 @@ def load_data(train_dir, test_dir, batch_size):
     :param batch_size: 배치 크기
     :return: train_loader, test_loader
     """
-    train_dataset = SpeechDataset(train_dir, transform=transforms.ToTensor())
-    test_dataset = SpeechDataset(test_dir, transform=transforms.ToTensor())
+    train_dataset = SpeechDataset(train_dir, transform=transform)
+    test_dataset = SpeechDataset(test_dir, transform=transform)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
@@ -124,7 +125,8 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs, device, e
     patience_counter = 0
 
     # 로깅 설정
-    logging.basicConfig(filename='training.log', level=logging.INFO, force=True)
+    log_file = f'training_{time.strftime("%Y%m%d_%H%M%S", time.gmtime())}.log'
+    logging.basicConfig(filename=log_file, level=logging.INFO, force=True)
     logging.info('Training started at ' + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
     for epoch in range(num_epochs):
@@ -205,17 +207,23 @@ def save_model(model, path):
 
 # main 함수
 def main():
-    train_dir = '/Users/imdohyeon/Library/CloudStorage/GoogleDrive-dhlim1598@gmail.com/공유 드라이브/4N_PKNU/BXAI/BMI/Mel-ResNet/Voice/Train'
-    test_dir = '/Users/imdohyeon/Library/CloudStorage/GoogleDrive-dhlim1598@gmail.com/공유 드라이브/4N_PKNU/BXAI/BMI/Mel-ResNet/Voice/Test'
+    train_dir = 'C:/Users/user/Downloads/SampleSameData/Train'
+    test_dir = 'C:/Users/user/Downloads/SampleSameData/Test'
     batch_size = 32
     num_epochs = 20
     learning_rate = 0.001
-    model_path = '/Users/imdohyeon/Documents/PythonWorkspace/Mel-ResNet/Model/mel_resnet_001.pth'
+    model_path = 'C:/Workspace-DoHyeonLim/PythonWorkspace/Mel-ResNet/Model/resnet_test001.pth'
     early_stopping_patience = 5
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    train_loader, test_loader = load_data(train_dir, test_dir, batch_size)
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),  # 이미지 크기 조정
+        transforms.ToTensor(),  # 이미지를 텐서로 변환
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 정규화
+    ])
+
+    train_loader, test_loader = load_data(train_dir, test_dir, batch_size, transform)
     model = ResNet(num_classes=13)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
