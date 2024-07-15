@@ -4,6 +4,7 @@ import torchaudio
 import os
 import noisereduce as nr
 import torch
+from PIL import Image
 
 # 파라미터 설정
 n_fft = 1024
@@ -13,9 +14,11 @@ n_mel_channels = 80
 mel_fmin = 0.0
 mel_fmax = 8000.0
 
+
 def load_data(file_path):
     y, sr = librosa.load(file_path, sr=None)
     return y, sr
+
 
 def cut_audio_to_2_seconds(y, sr, duration=2):
     num_samples = int(duration * sr)
@@ -27,13 +30,16 @@ def cut_audio_to_2_seconds(y, sr, duration=2):
         y_cut = y[:num_samples]
     return y_cut
 
+
 def resample_audio(y, orig_sr, target_sr=22050):
     y_resampled = torchaudio.functional.resample(torch.tensor(y), orig_sr, target_sr)
     return y_resampled.numpy()
 
+
 def reduce_noise(y, sr):
     y_nr = nr.reduce_noise(y=y, sr=sr)
     return y_nr
+
 
 def convert_mel_spect(data, sampling_rate):
     mel_basis = librosa.filters.mel(sr=sampling_rate, n_fft=n_fft, n_mels=n_mel_channels, fmin=mel_fmin, fmax=mel_fmax).astype(np.float32)
@@ -51,39 +57,27 @@ def convert_mel_spect(data, sampling_rate):
 
     return mel.numpy()
 
+
 def convert_mel_spect_librosa_only(data, sampling_rate):
-    mel_spect = librosa.feature.melspectrogram(data, sr=sampling_rate)
+    mel_spect = librosa.feature.melspectrogram(y=data, sr=sampling_rate)
     mel_spect = librosa.power_to_db(mel_spect, ref=np.max)
     return mel_spect
 
-def save_mel_spect(mel_spect, save_path):
-    np.save(save_path, mel_spect)
 
-def preprocess_audio(file_path, save_path):
+def mel_spect_to_image(mel_spect):
+    mel_spect = np.uint8(255 * (mel_spect - mel_spect.min()) / (mel_spect.max() - mel_spect.min()))
+    image = Image.fromarray(mel_spect)
+    image = image.convert("RGB")  # ResNet은 3채널 이미지를 기대하므로 RGB로 변환
+    return image
+
+
+# temp file (delete before commit)
+def preprocess_audio_temp(file_path):
     y, sr = load_data(file_path)
     y_cut = cut_audio_to_2_seconds(y, sr)
     y_resampled = resample_audio(y_cut, sr)
     y_nr = reduce_noise(y_resampled, 22050)
-    mel_spect = convert_mel_spect(y_nr, 22050)
-    save_mel_spect(mel_spect, save_path)
+    mel_spect = convert_mel_spect_librosa_only(y_nr, 22050)
+    mel_img = mel_spect_to_image(mel_spect)
+    return mel_img
 
-def preprocess_and_save(base_path, save_path, sr=22050):
-    classes = os.listdir(base_path)
-    for class_dir in classes:
-        class_path = os.path.join(base_path, class_dir)
-        save_class_path = os.path.join(save_path, class_dir)
-        os.makedirs(save_class_path, exist_ok=True)
-        
-        if os.path.isdir(class_path):
-            for filename in os.listdir(class_path):
-                if filename.endswith('.wav'):
-                    file_path = os.path.join(class_path, filename)
-                    try:
-                        mel_save_path = os.path.join(save_class_path, filename.replace('.wav', '.npy'))
-                        preprocess_audio(file_path, mel_save_path)
-                    except ValueError as e:
-                        print(f"Error processing {file_path}: {e}")
-
-augment_base_path = 'G:/공유 드라이브/4N_PKNU/BXAI/BMI/Mel-ResNet/Voice/Augmented'
-preprocessed_save_path = "C:/Users/user/Desktop/0708mel_aug"
-preprocess_and_save(augment_base_path, preprocessed_save_path)
