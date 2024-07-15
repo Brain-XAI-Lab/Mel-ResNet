@@ -1,6 +1,6 @@
 import torch
 from torchvision import models
-from temp_preprocessing import convert_mel_spect_librosa_only  # conv_mel_spect 함수는 임시
+from Preprocessing.temp_preprocessing import convert_mel_spect_librosa_only  # conv_mel_spect 함수는 임시
 import numpy as np
 
 
