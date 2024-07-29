@@ -1,5 +1,5 @@
 import os
-import time
+import times
 import logging
 import numpy as np
 import torch
@@ -8,11 +8,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from sklearn.metrics import accuracy_score, f1_score
-from Preprocessing.temp_preprocessing import preprocess_audio_temp
+from Preprocessing.Voice.preprocessing import preprocess_audio
 from torchvision import models
-
-
-
 
 
 # 데이터셋 클래스 정의
@@ -49,14 +46,11 @@ class SpeechDataset(Dataset):
 
     def __getitem__(self, idx):
         file_path = self.data_files[idx]
-        data = preprocess_audio_temp(file_path)  # 전처리 함수 사용, 임시
+        data = preprocess_audio(file_path)  # 전처리 함수 사용, 임시
 
         # 라벨명은 상위 폴더 이름
         label_name = os.path.basename(os.path.dirname(file_path))
         label = self.label_map[label_name]  # 라벨을 정수형으로 변환
-
-        # Mel-spectrogram 데이터 차원 맞추기 (채널 차원 추가)
-        # data = np.expand_dims(data, axis=0)  # (1, H, W) 형태로 변환
 
         if self.transform:
             data = self.transform(data)
@@ -161,7 +155,8 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs, device, e
 # 성능 평가 함수
 def evaluate_model(model, test_loader, criterion, device):
     """
-    모델을 평가하는 함수
+    모델을 평가하는 함수.
+    criterion과 별개로 accuracy, f1 score 성능 지표를 출력.
     :param model: 평가할 모델
     :param test_loader: 테스트 데이터 로더
     :param criterion: 손실 함수
@@ -216,6 +211,7 @@ def main():
     early_stopping_patience = 5
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Device:', device)
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),  # 이미지 크기 조정
